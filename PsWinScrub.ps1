@@ -175,7 +175,11 @@ function SetupPC() {
   SetTerminalPreviewPowershell
   
   Set-EnableRDP
-  
+
+  # enable SSH 
+  Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+  New-NetFirewallRule -Name sshd -DisplayName "OpenSSH Server (sshd)" -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+
   Set-TaskbarPins
   Set-EnableVM
   set-EnableClipboardHistory
