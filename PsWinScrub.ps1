@@ -117,7 +117,11 @@ function Get-InstallDeveloperApps()
     '9PLDPG46G47Z', # xbox insider hub
     'Perforce.P4V',
     'Araxis.Merge',
-    'NickeManarin.ScreenToGif'
+    'NickeManarin.ScreenToGif',
+    'Zoom.Zoom',
+    'Microsoft.VisualStudio.P',
+    'Microsoft.WindowsSDK.10.0.26100',
+    'Microsoft.Sysinternals.RDCMan'
   )
 
   return $wapps
