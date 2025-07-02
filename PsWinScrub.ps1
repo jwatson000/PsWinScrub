@@ -122,7 +122,8 @@ function Get-InstallDeveloperApps()
     'Microsoft.VisualStudio.P',
     'Microsoft.WindowsSDK.10.0.26100',
     'Microsoft.Sysinternals.RDCMan',
-    'EpicGames.EpicGamesLauncher'
+    'EpicGames.EpicGamesLauncher',
+    'Python.Python.3.13'
   )
 
   return $wapps
