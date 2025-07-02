@@ -121,7 +121,8 @@ function Get-InstallDeveloperApps()
     'Zoom.Zoom',
     'Microsoft.VisualStudio.P',
     'Microsoft.WindowsSDK.10.0.26100',
-    'Microsoft.Sysinternals.RDCMan'
+    'Microsoft.Sysinternals.RDCMan',
+    'EpicGames.EpicGamesLauncher'
   )
 
   return $wapps
