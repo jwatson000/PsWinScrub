@@ -235,3 +235,8 @@ function SetupPC() {
 # todo: add Brave extensions (1Passwd, Adguard? ,Proton?)
 
 }
+
+
+if ($HordeAgent) {
+	SetupPC
+}
