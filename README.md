@@ -1,5 +1,3 @@
 Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
-winget install git.git
-git clone https://github.com/jwatson000/PsWinScrub.git
-. ./PsWinScrub/PsWinScrub.ps1
-SetupPC
+(Invoke-WebRequest 'https://raw.githubusercontent.com/jwatson000/PsWinScrub/refs/heads/main/PsWinScrub.ps1').Content > PsWinScrub.ps1
+.\PsWinScrub.ps1
