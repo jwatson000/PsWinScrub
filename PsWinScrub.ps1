@@ -200,6 +200,7 @@ function SetupPC() {
   # disable windows start menu web search
   Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord
 
+  stop-process -name explorer # flush out the old crap
   
   Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
   
