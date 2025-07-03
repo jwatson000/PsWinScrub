@@ -1,6 +1,8 @@
 
 param (
-	[switch]$HordeAgent
+	[Parameter(Mandatory)][ValidateSet('HordeAgent','Developer')]
+  [string]$HostType,
+  [switch]$WhatIf
 )
 
 function SetDefaultBrowser() {
@@ -83,9 +85,8 @@ function Set-EnableClipboardHistory {
 	Set-ItemProperty -Path "HKCU:\Software\Microsoft\Clipboard" -Name "EnableClipboardHistory" -Value 1
 }
 
-function Get-InstallHordeServerApps()
-{
-  $wapps = @(
+$AppsByHostType = @{
+ All =  @(
     'Microsoft.PowerShell',
     'Microsoft.Sysinternals',
     'Microsoft.DotNet.DesktopRuntime.6', #required for powertoys
@@ -94,58 +95,33 @@ function Get-InstallHordeServerApps()
     'pulsejet.edgeandbingdeflector', # unclear if this actually works
     'Microsoft.WindowsTerminal.Preview',
     'WireGuard.WireGuard'
+  ) 
+  HordeServer =  @()
+  HordeClient = @()
+  Developer = @(
+    @(
+      '9NP355QT2SQB', # azure vpn client
+      'Microsoft.VisualStudioCode',
+      'Microsoft.VisualStudioCode.CLI',
+      'JetBrains.Rider',
+      'AgileBits.1Password',
+      'AgileBits.1Password.CLI',
+      #'Microsoft.WSL',
+      'Valve.Steam',
+      'Valve.SteamCMD',
+      'Obsidian.Obsidian',
+      '9PLDPG46G47Z', # xbox insider hub
+      'Perforce.P4V',
+      'Araxis.Merge',
+      'NickeManarin.ScreenToGif',
+      'Zoom.Zoom',
+      'Microsoft.VisualStudio.Professional',
+      'Microsoft.WindowsSDK.10.0.26100',
+      'Microsoft.Sysinternals.RDCMan',
+      'EpicGames.EpicGamesLauncher',
+      'Python.Python.3.13'
+    )
   )
-  return $wapps
-}
-
-function Get-InstallHordeAgentApps()
-{
-  $wapps = @(
-    'Microsoft.PowerShell',
-    'Microsoft.Sysinternals',
-    'Microsoft.DotNet.DesktopRuntime.6', #required for powertoys
-    'Microsoft.PowerToys',
-    'Brave.Brave',
-    'pulsejet.edgeandbingdeflector', # unclear if this actually works
-    'Microsoft.WindowsTerminal.Preview',
-    'WireGuard.WireGuard'
-  )
-  return $wapps
-}
-
-function Get-InstallDeveloperApps()
-{
-  $wapps = @(
-    '9NP355QT2SQB', # azure vpn client
-    'Microsoft.VisualStudioCode',
-    'Microsoft.VisualStudioCode.CLI',
-    'JetBrains.Rider',
-    'Microsoft.PowerShell',
-    'Microsoft.Sysinternals',
-    'Microsoft.DotNet.DesktopRuntime.6', #required for powertoys
-    'Microsoft.PowerToys',
-    'Brave.Brave',
-    'pulsejet.edgeandbingdeflector', # unclear if this actually works
-    'AgileBits.1Password',
-    'AgileBits.1Password.CLI',
-    'Microsoft.WindowsTerminal.Preview',
-    #'Microsoft.WSL',
-    'Valve.Steam',
-    'Valve.SteamCMD',
-    'Obsidian.Obsidian',
-    '9PLDPG46G47Z', # xbox insider hub
-    'Perforce.P4V',
-    'Araxis.Merge',
-    'NickeManarin.ScreenToGif',
-    'Zoom.Zoom',
-    'Microsoft.VisualStudio.P',
-    'Microsoft.WindowsSDK.10.0.26100',
-    'Microsoft.Sysinternals.RDCMan',
-    'EpicGames.EpicGamesLauncher',
-    'Python.Python.3.13'
-  )
-
-  return $wapps
 }
 
 
@@ -162,9 +138,11 @@ function Set-InstallApps() {
 		$wapps
  	)
  
+  write-host ":: Installing apps: [$($wapps -join ',')]"
 	$WingetArgs = '--disable-interactivity --accept-source-agreements --accept-package-agreements'
 	foreach ($wapp in $wapps) {
-		winget install $wapp ($WingetArgs -split ' ')
+    write-host ":: Installing app : $wapp" -ForegroundColor Cyan
+    if (!$WhatIf) { winget install $wapp ($WingetArgs -split ' ') }
 	}
 }
 
@@ -177,54 +155,70 @@ function Set-UpdatePc() {
   Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot
 }
 
-function SetupPC() {
 
-  $name = read-host 'Computer name?'
-  rename-computer $name
+function Get-AppListForHosttype() {
+  param($HostType)
 
-  # remove tabloid slime
-  Get-AppxPackage *WebExperience* | Remove-AppxPackage
+  $All = $AppsByHostType['All']
+  $Other = $AppsByHostType[$HostType]
+
+  return $All + $Other
+
   
-  # disable search suggestions
-  New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Force
-  New-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "EnableDynamicContentInWSB" -PropertyType DWORD -Value 0
+}
 
-  # disable uac
-  Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System -Name ConsentPromptBehaviorAdmin -Value 0
 
-  # disable windows spotlight
-  $RegistryPath = "HKCU:\Software\Policies\Microsoft\Windows\CloudContent"
-  if (-not (Test-Path $RegistryPath)) {    New-Item -Path $RegistryPath -Force  }
-  Set-ItemProperty -Path $RegistryPath -Name "DisableWindowsSpotlightFeatures" -Value 1
+function SetupPC($HostType) {
 
-  # disable windows start menu web search
-  Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord
+  $curname = hostname
+  $name = read-host ":: Computer name? [ENTER] for default ($Curname)"
+  if ($name -ne $curname) { 
+    write-host ":: Renaming computer to [$name]"
+    if (!$WhatIf) { rename-computer $name }
+  } 
 
-  stop-process -name explorer # flush out the old crap
-  
-  Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
-  
-  # set developer mode
-  reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
+  if (!$WhatIf) {
+    # remove tabloid slime
+    Get-AppxPackage *WebExperience* | Remove-AppxPackage
+    
+    # disable search suggestions
+    New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Force
+    New-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "EnableDynamicContentInWSB" -PropertyType DWORD -Value 0
 
-  if ($HordeAgent) {
-    Set-InstallApps Get-InstallHordeAgentApps
+    # disable uac
+    Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System -Name ConsentPromptBehaviorAdmin -Value 0
+
+    # disable windows spotlight
+    $RegistryPath = "HKCU:\Software\Policies\Microsoft\Windows\CloudContent"
+    if (-not (Test-Path $RegistryPath)) {    New-Item -Path $RegistryPath -Force  }
+    Set-ItemProperty -Path $RegistryPath -Name "DisableWindowsSpotlightFeatures" -Value 1
+
+    # disable windows start menu web search
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord
+
+    stop-process -name explorer # flush out the old crap
+    
+    Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
+    
+    # set developer mode
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
   }
-  else {
-    Set-InstallDeveloperApps
+
+  Set-InstallApps (Get-AppListForHosttype $HostType)
+  
+  if (!$WhatIf) {
+    SetTerminalPreviewPowershell
+    
+    Set-EnableRDP
+
+    # enable SSH 
+    Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+    New-NetFirewallRule -Name sshd -DisplayName "OpenSSH Server (sshd)" -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+
+    Set-TaskbarPins
+    Set-EnableVM
+    set-EnableClipboardHistory
   }
-  
-  SetTerminalPreviewPowershell
-  
-  Set-EnableRDP
-
-  # enable SSH 
-  Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
-  New-NetFirewallRule -Name sshd -DisplayName "OpenSSH Server (sshd)" -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
-
-  Set-TaskbarPins
-  Set-EnableVM
-  set-EnableClipboardHistory
 
 
 # todo: potentially use 1password cli/sdk to login to things like obsidian
@@ -237,7 +231,4 @@ function SetupPC() {
 
 }
 
-
-if ($HordeAgent) {
-	SetupPC
-}
+SetupPc $HostType
