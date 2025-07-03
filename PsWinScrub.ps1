@@ -1,4 +1,7 @@
 
+param (
+	[switch]$HordeAgent
+)
 
 function SetDefaultBrowser() {
 	$shell = New-Object -ComObject WScript.Shell
@@ -89,7 +92,23 @@ function Get-InstallHordeServerApps()
     'Microsoft.PowerToys',
     'Brave.Brave',
     'pulsejet.edgeandbingdeflector', # unclear if this actually works
-    'Microsoft.WindowsTerminal.Preview'
+    'Microsoft.WindowsTerminal.Preview',
+    'WireGuard.WireGuard'
+  )
+  return $wapps
+}
+
+function Get-InstallHordeAgentApps()
+{
+  $wapps = @(
+    'Microsoft.PowerShell',
+    'Microsoft.Sysinternals',
+    'Microsoft.DotNet.DesktopRuntime.6', #required for powertoys
+    'Microsoft.PowerToys',
+    'Brave.Brave',
+    'pulsejet.edgeandbingdeflector', # unclear if this actually works
+    'Microsoft.WindowsTerminal.Preview',
+    'WireGuard.WireGuard'
   )
   return $wapps
 }
@@ -138,6 +157,17 @@ function Set-InstallDeveloperApps() {
 	}
 }
 
+function Set-InstallApps() {
+	param (
+		$wapps
+ 	)
+ 
+	$WingetArgs = '--disable-interactivity --accept-source-agreements --accept-package-agreements'
+	foreach ($wapp in $wapps) {
+		winget install $wapp ($WingetArgs -split ' ')
+	}
+}
+
 
 
 function Set-UpdatePc() {
@@ -175,8 +205,13 @@ function SetupPC() {
   
   # set developer mode
   reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
-  
-  Set-InstallDeveloperApps
+
+  if ($HordeAgent) {
+    Set-InstallApps Get-InstallHordeAgentApps
+  }
+  else {
+    Set-InstallDeveloperApps
+  }
   
   SetTerminalPreviewPowershell
   
