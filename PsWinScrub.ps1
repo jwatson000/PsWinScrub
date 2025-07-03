@@ -172,7 +172,7 @@ function SetupPC($HostType) {
 
   $curname = hostname
   $name = read-host ":: Computer name? [ENTER] for default ($Curname)"
-  if ($name -ne $curname) { 
+  if ($name -and ($name -ne $curname)) { 
     write-host ":: Renaming computer to [$name]"
     if (!$WhatIf) { rename-computer $name }
   } 
