@@ -92,6 +92,7 @@ $AppsByHostType = @{
     'Microsoft.DotNet.DesktopRuntime.6', #required for powertoys
     'Microsoft.PowerToys',
     'Brave.Brave',
+    'Vim.Vim',
     'pulsejet.edgeandbingdeflector', # unclear if this actually works
     'Microsoft.WindowsTerminal.Preview',
     'WireGuard.WireGuard'
@@ -115,6 +116,8 @@ $AppsByHostType = @{
       'Araxis.Merge',
       'NickeManarin.ScreenToGif',
       'Zoom.Zoom',
+      'Git.git',
+      'Adobe.CreativeCloud',
       'Microsoft.VisualStudio.Professional',
       'Microsoft.WindowsSDK.10.0.26100',
       'Microsoft.Sysinternals.RDCMan',
@@ -122,6 +125,11 @@ $AppsByHostType = @{
       'Python.Python.3.13'
     )
   )
+  Entertainment = @(
+  @(
+    'Spotify.Spotify'
+  )
+)
 }
 
 
@@ -192,6 +200,8 @@ function SetupPC($HostType) {
     $RegistryPath = "HKCU:\Software\Policies\Microsoft\Windows\CloudContent"
     if (-not (Test-Path $RegistryPath)) {    New-Item -Path $RegistryPath -Force  }
     Set-ItemProperty -Path $RegistryPath -Name "DisableWindowsSpotlightFeatures" -Value 1
+    Set-ItemProperty -Path $RegistryPath -Name "DisableConsumerFeatures" -Value 1
+
 
     # disable windows start menu web search
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord
