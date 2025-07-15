@@ -1,19 +1,21 @@
 
 param (
-	[Parameter(Mandatory)][ValidateSet('HordeAgent','Developer')]
+  [Parameter(Mandatory)][ValidateSet('HordeAgent', 'HordeServer', 'Developer')]
   [string]$HostType,
-  [switch]$WhatIf
+  [switch]$WhatIf,
+  [string]$sshPublicKey,
+  [string]$wireguardConfigfile
 )
 
 function SetDefaultBrowser() {
-	$shell = New-Object -ComObject WScript.Shell
-	Start-Process ms-settings:defaultapps
-	start-sleep 1; 1..4 | % {$shell.SendKeys('{TAB}')}; 
-	start-sleep 1; $shell.sendKeys('Brave');
-	start-sleep 1; $shell.SendKeys('{TAB}'); $shell.SendKeys('{ENTER}'); 
-	start-sleep 1; $shell.SendKeys('{ENTER}'); 
-	start-sleep 1
-	$shell.SendKeys('%{F4}')
+  $shell = New-Object -ComObject WScript.Shell
+  Start-Process ms-settings:defaultapps
+  start-sleep 1; 1..4 | % { $shell.SendKeys('{TAB}') }; 
+  start-sleep 1; $shell.sendKeys('Brave');
+  start-sleep 1; $shell.SendKeys('{TAB}'); $shell.SendKeys('{ENTER}'); 
+  start-sleep 1; $shell.SendKeys('{ENTER}'); 
+  start-sleep 1
+  $shell.SendKeys('%{F4}')
 }
 
 function SetTerminalPreviewPowershell() {
@@ -25,7 +27,7 @@ function SetTerminalPreviewPowershell() {
   foreach ($appn in @('WindowsTerminalPreview', 'WindowsTerminal')) {
     $fn = "$AppLocal\Packages\Microsoft.${appn}_8wekyb3d8bbwe\LocalState\settings.json"
     write-host "Checking $appn @$fn"
-    if (!(Test-Path $fn)) { write-host "not installed at $fn"; return}
+    if (!(Test-Path $fn)) { write-host "not installed at $fn"; return }
     $j = get-content $fn | convertfrom-json
 
     foreach ($p in $j.profiles.list) {
@@ -49,7 +51,7 @@ function Set-EnableRDP() {
 }
 
 function Set-TaskbarPins() {
-  $f="$env:APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\"
+  $f = "$env:APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\"
   # https://superuser.com/questions/1193985/command-line-code-to-pin-program-to-taskbar-windows-10
 }
 
@@ -77,18 +79,18 @@ function Set-DisableWindowsTabloidSlime() {
 }
 
 function Set-EnableDeveloperMode() {
-	reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
+  reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
 }
 
 
 function Set-EnableClipboardHistory {
-	Set-ItemProperty -Path "HKCU:\Software\Microsoft\Clipboard" -Name "EnableClipboardHistory" -Value 1
+  Set-ItemProperty -Path "HKCU:\Software\Microsoft\Clipboard" -Name "EnableClipboardHistory" -Value 1
 }
 
 $AppsByHostType = @{
- All =  @(
+  All           = @(
     'Microsoft.PowerShell',
-    'Microsoft.Sysinternals',
+    'Microsoft.Sysinternals.Suite',
     'Microsoft.DotNet.DesktopRuntime.6', #required for powertoys
     'Microsoft.PowerToys',
     'Brave.Brave',
@@ -97,9 +99,9 @@ $AppsByHostType = @{
     'Microsoft.WindowsTerminal.Preview',
     'WireGuard.WireGuard'
   ) 
-  HordeServer =  @()
-  HordeClient = @()
-  Developer = @(
+  HordeServer   = @()
+  HordeClient   = @()
+  Developer     = @(
     @(
       '9NP355QT2SQB', # azure vpn client
       'Microsoft.VisualStudioCode',
@@ -126,32 +128,32 @@ $AppsByHostType = @{
     )
   )
   Entertainment = @(
-  @(
-    'Spotify.Spotify'
+    @(
+      'Spotify.Spotify'
+    )
   )
-)
 }
 
 
 function Set-InstallDeveloperApps() {
-	$wapps = Get-InstallDeveloperApps
-	$WingetArgs = '--disable-interactivity --accept-source-agreements --accept-package-agreements'
-	foreach ($wapp in $wapps) {
-		winget install $wapp ($WingetArgs -split ' ')
-	}
+  $wapps = Get-InstallDeveloperApps
+  $WingetArgs = '--disable-interactivity --accept-source-agreements --accept-package-agreements'
+  foreach ($wapp in $wapps) {
+    winget install $wapp ($WingetArgs -split ' ')
+  }
 }
 
 function Set-InstallApps() {
-	param (
-		$wapps
+  param (
+    $wapps
  	)
  
   write-host ":: Installing apps: [$($wapps -join ',')]"
-	$WingetArgs = '--disable-interactivity --accept-source-agreements --accept-package-agreements'
-	foreach ($wapp in $wapps) {
+  $WingetArgs = '--disable-interactivity --accept-source-agreements --accept-package-agreements'
+  foreach ($wapp in $wapps) {
     write-host ":: Installing app : $wapp" -ForegroundColor Cyan
     if (!$WhatIf) { winget install $wapp ($WingetArgs -split ' ') }
-	}
+  }
 }
 
 
@@ -175,6 +177,30 @@ function Get-AppListForHosttype() {
   
 }
 
+function SetupHordeAgent() {
+
+  $agentconfig = 'C:\ProgramData\Epic\Horde\Agent\agent.json'
+  @'
+{
+	"Horde": {
+		"Server": "stoic",
+		"ServerProfiles": [
+			{
+				"Name": "stoic",
+				"Environment": "dev",
+				"Url": "http://horde.stoic:13340"
+			}
+		]
+	}
+}
+'@ > $agentconfig
+
+  $response = Invoke-WebRequest 'http://horde.stoic:13340/api/v1/tools/horde-agent-msi?action=download'
+  [IO.File]::WriteAllBytes("UnrealHordeAgent.msi", $response.Content)
+  & .\UnrealHordeAgent.msi
+
+}
+
 
 function SetupPC($HostType) {
 
@@ -186,6 +212,11 @@ function SetupPC($HostType) {
   } 
 
   if (!$WhatIf) {
+
+    # Windows Defender
+    Add-MpPreference -ExclusionPath c:\stoic
+    Set-MpPreference -DisableRealtimeMonitoring $true
+
     # remove tabloid slime
     Get-AppxPackage *WebExperience* | Remove-AppxPackage
     
@@ -198,7 +229,7 @@ function SetupPC($HostType) {
 
     # disable windows spotlight
     $RegistryPath = "HKCU:\Software\Policies\Microsoft\Windows\CloudContent"
-    if (-not (Test-Path $RegistryPath)) {    New-Item -Path $RegistryPath -Force  }
+    if (-not (Test-Path $RegistryPath)) { New-Item -Path $RegistryPath -Force }
     Set-ItemProperty -Path $RegistryPath -Name "DisableWindowsSpotlightFeatures" -Value 1
     Set-ItemProperty -Path $RegistryPath -Name "DisableConsumerFeatures" -Value 1
 
@@ -223,21 +254,52 @@ function SetupPC($HostType) {
 
     # enable SSH 
     Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
-    New-NetFirewallRule -Name sshd -DisplayName "OpenSSH Server (sshd)" -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+    New-NetFirewallRule -Name sshd -DisplayName "sshd" -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+
+    if ($sshPublicKey) {
+      $sshAuthorizedKeysPath = 'c:\ProgramData\ssh\administrators_authorized_keys'
+      if (!(Test-Path $sshAuthorizedKeysPath)) { New-Item -ItemType File -Path $sshAuthorizedKeysPath -Force | Out-Null }
+      Add-Content -Path $sshAuthorizedKeysPath -Value $sshPublicKey
+    }
+
+    $sshd_config = 'C:\ProgramData\ssh\sshd_config'
+    $sshd_lines = ($sshd_lines `
+    | Where-Object { $_ -notmatch '^(#?)(PasswordAuthentication|PubkeyAuthentication|\s*AuthorizedKeysFile|Match)' }) `
+      + @(
+      '#added by setup script',
+      'PasswordAuthentication no',
+      'PubkeyAuthentication yes',
+      'AuthorizedKeysFile __PROGRAMDATA__/ssh/authorized_keys',
+      'Match Group administrators',
+      '       AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys'
+    )
+    $sshd_lines | Set-Content -Encoding ascii $sshd_config
+
+    if ($wireguardConfigfile) {
+      New-Item -Path HKLM:\SOFTWARE\Wireguard -ItemType Directory -ErrorAction Stop
+      Set-ItemProperty -Path HKLM:\SOFTWARE\Wireguard -Name DangerousScriptExecution -Type DWord -Value 1
+      & 'C:\Program Files\WireGuard\wireguard.exe' /installtunnelservice $wireguardConfigfile
+      Copy-Item $wireguardConfigfile 'C:\Program Files\WireGuard\Data\Configurations\'
+    }
+
+    if ($HostType -eq 'HordeAgent') {
+      SetupHordeAgent
+    }
 
     Set-TaskbarPins
     Set-EnableVM
     set-EnableClipboardHistory
+
   }
 
 
-# todo: potentially use 1password cli/sdk to login to things like obsidian
-# todo: configure individual apps settings (vscode, etc...)
-# todo: vscode add extensions: powershell, dotnet, ...
+  # todo: potentially use 1password cli/sdk to login to things like obsidian
+  # todo: configure individual apps settings (vscode, etc...)
+  # todo: vscode add extensions: powershell, dotnet, ...
 
-# todo: pin apps to taskbar 'C:\Users\JohnWatson\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\'
-# todo: apply Brave bookmarks and backup to git
-# todo: add Brave extensions (1Passwd, Adguard? ,Proton?)
+  # todo: pin apps to taskbar 'C:\Users\JohnWatson\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\'
+  # todo: apply Brave bookmarks and backup to git
+  # todo: add Brave extensions (1Passwd, Adguard? ,Proton?)
 
 }
 
