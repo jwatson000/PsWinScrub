@@ -122,6 +122,7 @@ $AppsByHostType = @{
       'Adobe.CreativeCloud',
       'Microsoft.VisualStudio.Professional',
       'Microsoft.WindowsSDK.10.0.26100',
+      "Microsoft.VisualStudio.2022.BuildTools"
       'Microsoft.Sysinternals.RDCMan',
       'EpicGames.EpicGamesLauncher',
       'Python.Python.3.13'
